@@ -15,10 +15,8 @@ genai.configure(api_key=api_key)
 
 # MODELL BEÁLLÍTÁSA - A legstabilabb névvel
 # Ha a 'gemini-1.5-flash' nem megy, ez a verzió automatikusan próbálkozik
-try:
-    model = genai.GenerativeModel('gemini-1.5-flash-latest')
-except:
-    model = genai.GenerativeModel('gemini-pro')
+model = genai.GenerativeModel('gemini-pro')
+
 
 # Chat előzmények inicializálása
 if "messages" not in st.session_state:
