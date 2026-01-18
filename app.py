@@ -25,33 +25,48 @@ if prompt := st.chat_input("Írj valamit..."):
         st.markdown(prompt)
 
     with st.chat_message("assistant"):
-        # EZ A SPECIÁLIS URL A MEGOLDÁS:
-        # v1beta-t használunk, és pontosan azt a nevet adjuk meg, amit a szerver kér
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={api_key}"
+        # EZ A TITOK: A stabil v1 végpontot használjuk, 
+        # és pontosan azt a modell nevet, amit a Google legutoljára jóváhagyott
+        url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={api_key}"
         
         headers = {'Content-Type': 'application/json'}
         payload = {
-            "contents": [{"parts": [{"text": prompt}]}]
+            "contents": [
+                {
+                    "role": "user",
+                    "parts": [{"text": prompt}]
+                }
+            ],
+            "generationConfig": {
+                "temperature": 0.7,
+                "topP": 0.95,
+                "topK": 40,
+                "maxOutputTokens": 1024,
+            }
         }
 
         try:
             response = requests.post(url, headers=headers, data=json.dumps(payload))
             result = response.json()
             
-            if "candidates" in result:
+            if "candidates" in result and result["candidates"]:
                 answer = result["candidates"][0]["content"]["parts"][0]["text"]
                 st.markdown(answer)
                 st.session_state.messages.append({"role": "assistant", "content": answer})
-            else:
-                # Ha ez sem megy, megpróbáljuk a flash-el is automatikusan
-                url_flash = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
-                response = requests.post(url_flash, headers=headers, data=json.dumps(payload))
-                result = response.json()
-                if "candidates" in result:
-                    answer = result["candidates"][0]["content"]["parts"][0]["text"]
+            elif "error" in result:
+                # Ha még mindig 404-et dob, megpróbáljuk a "gemini-pro" nevet automatikusan
+                alt_url = f"https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key={api_key}"
+                alt_res = requests.post(alt_url, headers=headers, data=json.dumps(payload))
+                alt_result = alt_res.json()
+                
+                if "candidates" in alt_result:
+                    answer = alt_result["candidates"][0]["content"]["parts"][0]["text"]
                     st.markdown(answer)
                     st.session_state.messages.append({"role": "assistant", "content": answer})
                 else:
-                    st.error(f"Google válasza: {result.get('error', {}).get('message', 'Ismeretlen hiba')}")
+                    st.error(f"Google hiba: {result['error']['message']}")
+            else:
+                st.warning("Nem érkezett válasz az AI-tól. Próbáld újra!")
         except Exception as e:
-            st.error(f"Hiba: {e}")
+            st.error(f"Váratlan hiba: {e}")
+            
