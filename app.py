@@ -7,8 +7,7 @@ st.set_page_config(page_title="Saját AI Asszisztens", page_icon="🤖")
 st.title("🤖 Saját Gemini App")
 
 # API kulcs beállítása (biztonságosabb, ha titkosított környezeti változóként tárolod)
-api_key = "AIzaSyA3DpHNUlgrdnJ0O0OmE4Gzva7ABS1Vgpc"
-genai.configure(api_key=api_key)
+api_key = st.secrets["GOOGLE_API_KEY"]
 
 # Modell beállítása
 model = genai.GenerativeModel('gemini-1.5-flash')
