@@ -1,5 +1,6 @@
 import streamlit as st
 import google.generativeai as genai
+import os
 
 # Oldal konfiguráció
 st.set_page_config(page_title="Saját AI Asszisztens", layout="centered")
@@ -10,23 +11,24 @@ if "GOOGLE_API_KEY" not in st.secrets:
     st.error("Hiba: Hiányzik az API kulcs a Secrets-ből!")
     st.stop()
 
-# Konfiguráció
+# KÉNYSZERÍTETT KONFIGURÁCIÓ A STABIL v1 API-HOZ
+# Ez a sor javítja ki a 404-es hibát
+os.environ["GOOGLE_API_VERSION"] = "v1"
 genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
 
-# MODELL DEFINIÁLÁSA - A 404-ES HIBA ELLENI SPECIÁLIS NÉVVEL
-# Ez a teljes elérési út segít a Google szervereinek megtalálni a modellt
-model = genai.GenerativeModel(model_name='models/gemini-1.5-flash')
+# Modell definiálása
+model = genai.GenerativeModel('gemini-1.5-flash')
 
-# Chat memória
+# Chat memória inicializálása
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# Üzenetek megjelenítése
+# Korábbi üzenetek megjelenítése
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# Beviteli mező
+# Felhasználói bemenet
 if prompt := st.chat_input("Írj valamit..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
@@ -34,18 +36,13 @@ if prompt := st.chat_input("Írj valamit..."):
 
     with st.chat_message("assistant"):
         try:
-            # Generálás
+            # Válasz generálása
             response = model.generate_content(prompt)
-            st.markdown(response.text)
-            st.session_state.messages.append({"role": "assistant", "content": response.text})
-        except Exception as e:
-            # Ha még mindig baj van, megpróbáljuk a Pro modellt is
-            try:
-                alt_model = genai.GenerativeModel(model_name='models/gemini-pro')
-                response = alt_model.generate_content(prompt)
+            if response and response.text:
                 st.markdown(response.text)
                 st.session_state.messages.append({"role": "assistant", "content": response.text})
-            except:
-                st.error(f"Hiba történt: {e}")
-                st.info("Kérlek, várj pár percet, amíg a Google aktiválja az új kulcsodat!")
-                
+            else:
+                st.warning("Az AI nem küldött választ. Próbáld meg újra!")
+        except Exception as e:
+            st.error(f"Technikai hiba: {e}")
+            st.info("Tipp: Ha most hoztad létre a kulcsot, várj 5 percet és nyomj egy Reboot-ot!")
