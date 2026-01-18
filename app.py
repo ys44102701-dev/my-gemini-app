@@ -10,7 +10,7 @@ st.title("🤖 Saját Gemini App")
 api_key = st.secrets["GOOGLE_API_KEY"]
 
 # Modell beállítása
-model = genai.GenerativeModel('gemini-1.5-flash')
+model = genai.GenerativeModel('gemini-pro')
 
 # Chat előzmények inicializálása
 if "messages" not in st.session_state:
