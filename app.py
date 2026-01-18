@@ -1,19 +1,18 @@
 import streamlit as st
-import google.generativeai as genai
+import requests
+import json
 
-# Oldal konfiguráció
 st.set_page_config(page_title="Saját AI", layout="centered")
 st.title("🤖 Saját Gemini App")
 
 # API kulcs ellenőrzése
 if "GOOGLE_API_KEY" not in st.secrets:
-    st.error("Hiányzik az API kulcs!")
+    st.error("Hiányzik az API kulcs a Secrets-ből!")
     st.stop()
 
-# SPECIÁLIS KONFIGURÁCIÓ: A stabil v1 verzió kényszerítése
-genai.configure(api_key=st.secrets["GOOGLE_API_KEY"], transport='rest')
+api_key = st.secrets["GOOGLE_API_KEY"]
 
-# Chat memória
+# Chat memória inicializálása
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
@@ -29,15 +28,24 @@ if prompt := st.chat_input("Írj valamit..."):
         st.markdown(prompt)
 
     with st.chat_message("assistant"):
+        # KÖZVETLEN V1-ES HÍVÁS (Megkerüli a 404-es hibát)
+        url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={api_key}"
+        headers = {'Content-Type': 'application/json'}
+        payload = {
+            "contents": [{"parts": [{"text": prompt}]}]
+        }
+
         try:
-            # Itt a titok: a legstabilabb modell nevet használjuk
-            model = genai.GenerativeModel('gemini-1.5-flash')
-            response = model.generate_content(prompt)
+            response = requests.post(url, headers=headers, data=json.dumps(payload))
+            result = response.json()
             
-            if response.text:
-                st.markdown(response.text)
-                st.session_state.messages.append({"role": "assistant", "content": response.text})
+            # Válasz kiírása
+            if "candidates" in result:
+                answer = result["candidates"][0]["content"]["parts"][0]["text"]
+                st.markdown(answer)
+                st.session_state.messages.append({"role": "assistant", "content": answer})
+            else:
+                st.error(f"Hiba a Google válaszában: {result.get('error', {}).get('message', 'Ismeretlen hiba')}")
         except Exception as e:
-            st.error(f"Hiba: {e}")
-            st.info("Ha most hoztad létre a kulcsot, adj a Google-nek 10 percet!")
+            st.error(f"Hálózati hiba: {e}")
             
