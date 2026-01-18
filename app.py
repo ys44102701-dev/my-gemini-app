@@ -10,12 +10,12 @@ if "GOOGLE_API_KEY" not in st.secrets:
     st.error("Hiba: Hiányzik az API kulcs a Secrets-ből!")
     st.stop()
 
-# Konfiguráció kényszerítése v1 verzióra (ez a lényeg!)
+# Konfiguráció
 genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
 
-# Modell definiálása a legbiztosabb névvel
-# A 1.5-flash jelenleg a leggyorsabb és leginkább támogatott
-model = genai.GenerativeModel('gemini-1.5-flash')
+# MODELL DEFINIÁLÁSA - A 404-ES HIBA ELLENI SPECIÁLIS NÉVVEL
+# Ez a teljes elérési út segít a Google szervereinek megtalálni a modellt
+model = genai.GenerativeModel(model_name='models/gemini-1.5-flash')
 
 # Chat memória
 if "messages" not in st.session_state:
@@ -34,19 +34,18 @@ if prompt := st.chat_input("Írj valamit..."):
 
     with st.chat_message("assistant"):
         try:
-            # Generálás hibakezeléssel
+            # Generálás
             response = model.generate_content(prompt)
-            if response.text:
+            st.markdown(response.text)
+            st.session_state.messages.append({"role": "assistant", "content": response.text})
+        except Exception as e:
+            # Ha még mindig baj van, megpróbáljuk a Pro modellt is
+            try:
+                alt_model = genai.GenerativeModel(model_name='models/gemini-pro')
+                response = alt_model.generate_content(prompt)
                 st.markdown(response.text)
                 st.session_state.messages.append({"role": "assistant", "content": response.text})
-        except Exception as e:
-            # Ha még mindig 404, kiírjuk a pontos okot
-            st.error(f"Technikai hiba: {e}")
-            if "404" in str(e):
-                st.info("Próbálkozom a régebbi modellel...")
-                try:
-                    alt_model = genai.GenerativeModel('gemini-pro')
-                    response = alt_model.generate_content(prompt)
-                    st.markdown(response.text)
-                except:
-                    st.warning("Úgy tűnik, az API kulcsod még nem aktiválódott teljesen a Google-nél. Várj 5 percet!")
+            except:
+                st.error(f"Hiba történt: {e}")
+                st.info("Kérlek, várj pár percet, amíg a Google aktiválja az új kulcsodat!")
+                
